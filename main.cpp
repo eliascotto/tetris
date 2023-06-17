@@ -111,6 +111,7 @@ randomNumber (int min, int max)
 //------------------------------------------------------------------------------------
 // Classes
 //------------------------------------------------------------------------------------
+// Class that simply keep tracking of each pressed key into a boolean vector.
 class InputManager {
 private:
     std::vector<bool> keymap;
@@ -137,6 +138,9 @@ private:
 
 public:
     FontManager (const char* fontPath, int size) {
+        // Font opening requires a size, which cannot be changed afterwards.
+        // So to have multiple text size rendering, you need to create 
+        // multiple FontManager objects, each with a different size.
         font = TTF_OpenFont(fontPath, size);
         if (!font) {
             std::cout << TTF_GetError() << std::endl;
@@ -216,6 +220,15 @@ Block::rotationPreview ()
     return rotated;
 }
 
+//
+// To keep track of the current moving block and the game grid, we use
+// two different matrixes. The grid is default to 10x20, while the matrix
+// for the moving block is a 4x4. 
+// The movingBlock object keeps track of the matrix, plus the position of the block
+// in the grid (x,y). To do collision detection, we iterate over
+// the block matrix, adding the position and checking if in the grid matrix,
+// the cell is EMPTY or is a WALL/BLOCK and in case, is a collision.
+//
 class Tetris {
 private:
     // Game
@@ -431,7 +444,7 @@ Tetris::draw (SDL_Renderer* renderer)
 void
 Tetris::initialize ()
 {
-    // + 1 since we include the bottom wall, + 2 for the lateral
+    // + 1 since we include the bottom wall, + 2 for the lateral walls
     grid.resize(rowsN + 1, std::vector<int>(colsN + 2, EMPTY));
     rowsToDelete.clear();
 
@@ -460,6 +473,7 @@ Tetris::checkCompletedRows ()
         }
 
         if (squareCounter == colsN) {
+            // Add rows to array for score, then set the row to FADING
             rowsToDelete.push_back(i);
 
             for (int j = 0; j < colsN; j++)
@@ -484,8 +498,8 @@ Tetris::removeCompletedRows ()
         for (int j = rowIndex; j > 0; j--)
             grid[j] = grid[j - 1];
 
-        grid[0] = std::vector<int>(colsN + 2, 0);
-        grid[0][0] = grid[0][colsN + 1] = WALL;
+        grid[0] = std::vector<int>(colsN + 2, 0); // Add firt row of 0
+        grid[0][0] = grid[0][colsN + 1] = WALL;   // Set lateral walls
     }
 }
 
@@ -494,6 +508,7 @@ Tetris::solveRotationCollision ()
 {
     bool collision = false;
     int blockPosX = movingBlock->posX, blockPosY = movingBlock->posY;
+    // Use a temp matrix to preview the rotation and check if it collides
     std::vector<std::vector<int> > rotatedShape = movingBlock->rotationPreview();
 
     for (int i = 0; i < 4; i++) {
@@ -527,7 +542,7 @@ Tetris::solveHorizontalCollision ()
             else if (isRightPressed)
                 sideBlock = grid[blockPosY + i][blockPosX + j + 1];
             
-            // Check if block on left/right side is BLOCK or WALL so set collision
+            // Collision if block on left/right side is a BLOCK/WALL
             if (movingBlock->shape[i][j] == MOVING && (sideBlock == BLOCK || sideBlock == WALL)) {
                 collision = true;
             }
